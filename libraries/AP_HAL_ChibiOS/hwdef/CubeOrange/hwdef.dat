@@ -170,6 +170,9 @@ PD14 TIM4_CH3 TIM4 PWM(6) GPIO(55)
 
 define BOARD_PWM_COUNT_DEFAULT 4
 
+# Pin for PWM Voltage Selection
+PB4 PWM_VOLT_SEL OUTPUT HIGH GPIO(3)
+
 # Relays default to use GPIO pins 54 and 55.
 define RELAY1_PIN_DEFAULT 54
 define RELAY2_PIN_DEFAULT 55
@@ -229,6 +232,39 @@ SPIDEV external0m2    SPI4 DEVID5  MPU_EXT_CS   MODE2  2*MHZ  2*MHZ
 SPIDEV external0m3    SPI4 DEVID5  MPU_EXT_CS   MODE3  2*MHZ  2*MHZ
 SPIDEV pixartPC15     SPI4 DEVID13 ACCEL_EXT_CS MODE3  2*MHZ  2*MHZ
 
+# three IMUs, but allow for different varients. First two IMUs are
+# isolated, 3rd isn't
+IMU Invensense SPI:mpu9250_ext ROTATION_PITCH_180
+
+# the 3 rotations for the LSM9DS0 driver are for the accel, the gyro
+# and the H varient of the gyro
+IMU LSM9DS0 SPI:lsm9ds0_ext_g SPI:lsm9ds0_ext_am ROTATION_ROLL_180_YAW_270 ROTATION_ROLL_180_YAW_90 ROTATION_ROLL_180_YAW_90
+
+# 3rd non-isolated IMU
+IMU Invensense SPI:mpu9250 ROTATION_YAW_270
+
+# alternative IMU set for newer cubes
+IMU Invensense SPI:icm20602_ext ROTATION_ROLL_180_YAW_270
+IMU Invensensev2 SPI:icm20948_ext ROTATION_PITCH_180
+IMU Invensensev2 SPI:icm20948 ROTATION_YAW_270
+
+define HAL_DEFAULT_INS_FAST_SAMPLE 1
+
+# two baros
+BARO MS56XX SPI:ms5611_ext
+BARO MS56XX SPI:ms5611
+
+# two compasses. First is in the LSM303D
+COMPASS LSM303D SPI:lsm9ds0_ext_am ROTATION_YAW_270
+# 2nd compass is part of the 2nd invensense IMU
+COMPASS AK8963:probe_mpu9250 1 ROTATION_YAW_270
+
+# compass as part of ICM20948 on newer cubes
+COMPASS AK09916:probe_ICM20948 0 ROTATION_ROLL_180_YAW_90
+
+# also probe for external compasses
+define HAL_PROBE_EXTERNAL_I2C_COMPASSES
+
 define HAL_CHIBIOS_ARCH_FMUV3 1
 
 define BOARD_TYPE_DEFAULT 3
@@ -262,6 +298,7 @@ define HAL_BATT_VOLT_PIN 2
 define HAL_BATT_CURR_PIN 3
 define HAL_BATT_VOLT_SCALE 10.1
 define HAL_BATT_CURR_SCALE 17.0
+define HAL_GPIO_PWM_VOLT_PIN 3
 
 # List of files to put in ROMFS. For fmuv3 we need an IO firmware so
 # we can automatically update the IOMCU firmware on boot. The format

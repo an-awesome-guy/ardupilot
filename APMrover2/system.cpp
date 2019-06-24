@@ -6,6 +6,7 @@ The init_ardupilot function processes everything we need for an in - air restart
 *****************************************************************************/
 
 #include "Rover.h"
+#include <AP_Common/AP_FWVersion.h>
 
 static void mavlink_delay_cb_static()
 {
@@ -72,7 +73,9 @@ void Rover::init_ardupilot()
 
     g2.airspeed.init();
 
-    g2.windvane.init();
+    g2.windvane.init(serial_manager);
+
+    rover.g2.sailboat.init();
 
     // init baro before we start the GCS, so that the CLI baro test works
     barometer.init();
@@ -89,10 +92,11 @@ void Rover::init_ardupilot()
 #endif
 
     // initialise compass
-    init_compass();
+    AP::compass().set_log_bit(MASK_LOG_COMPASS);
+    AP::compass().init();
 
     // initialise rangefinder
-    rangefinder.init();
+    rangefinder.init(ROTATION_NONE);
 
     // init proximity sensor
     init_proximity();
@@ -113,7 +117,7 @@ void Rover::init_ardupilot()
 
     ins.set_log_raw_bit(MASK_LOG_IMU_RAW);
 
-    set_control_channels();  // setup radio channels and ouputs ranges
+    set_control_channels();  // setup radio channels and outputs ranges
     init_rc_in();            // sets up rc channels deadzone
     g2.motors.init();        // init motors including setting servo out channels ranges
     SRV_Channels::enable_aux_servos();
@@ -139,6 +143,9 @@ void Rover::init_ardupilot()
 
     // initialize SmartRTL
     g2.smart_rtl.init();
+
+    // initialise object avoidance
+    g2.oa.init();
 
     startup_ground();
 
@@ -240,7 +247,8 @@ bool Rover::set_mode(Mode &new_mode, mode_reason_t reason)
     Mode &old_mode = *control_mode;
     if (!new_mode.enter()) {
         // Log error that we failed to enter desired flight mode
-        Log_Write_Error(ERROR_SUBSYSTEM_FLIGHT_MODE, new_mode.mode_number());
+        AP::logger().Write_Error(LogErrorSubsystem::FLIGHT_MODE,
+                                 LogErrorCode(new_mode.mode_number()));
         gcs().send_text(MAV_SEVERITY_WARNING, "Flight mode change failed");
         return false;
     }
@@ -271,7 +279,7 @@ void Rover::startup_INS_ground(void)
     hal.scheduler->delay(100);
 
     ahrs.init();
-    // say to EKF that rover only move by goind forward
+    // say to EKF that rover only move by going forward
     ahrs.set_fly_forward(true);
     ahrs.set_vehicle_class(AHRS_VEHICLE_GROUND);
 
@@ -282,12 +290,13 @@ void Rover::startup_INS_ground(void)
 // update notify with mode change
 void Rover::notify_mode(const Mode *mode)
 {
+    AP_Notify::flags.autopilot_mode = mode->is_autopilot_mode();
     notify.flags.flight_mode = mode->mode_number();
     notify.set_flight_mode_str(mode->name4());
 }
 
 /*
-  check a digitial pin for high,low (1/0)
+  check a digital pin for high,low (1/0)
  */
 uint8_t Rover::check_digital_pin(uint8_t pin)
 {
@@ -306,57 +315,6 @@ uint8_t Rover::check_digital_pin(uint8_t pin)
 bool Rover::should_log(uint32_t mask)
 {
     return logger.should_log(mask);
-}
-
-/*
-  update AHRS soft arm state and log as needed
- */
-void Rover::change_arm_state(void)
-{
-    Log_Write_Arm_Disarm();
-    update_soft_armed();
-}
-
-/*
-  arm motors
- */
-bool Rover::arm_motors(AP_Arming::Method method)
-{
-    if (!arming.arm(method)) {
-        AP_Notify::events.arming_failed = true;
-        return false;
-    }
-
-    // Set the SmartRTL home location. If activated, SmartRTL will ultimately try to land at this point
-    g2.smart_rtl.set_home(true);
-
-    // initialize simple mode heading
-    rover.mode_simple.init_heading();
-
-    // save home heading for use in sail vehicles
-    rover.g2.windvane.record_home_heading();
-
-    change_arm_state();
-    return true;
-}
-
-/*
-  disarm motors
- */
-bool Rover::disarm_motors(void)
-{
-    if (!arming.disarm()) {
-        return false;
-    }
-    if (control_mode != &mode_auto) {
-        // reset the mission on disarm if we are not in auto
-        mode_auto.mission.reset();
-    }
-
-    // only log if disarming was successful
-    change_arm_state();
-
-    return true;
 }
 
 // returns true if vehicle is a boat

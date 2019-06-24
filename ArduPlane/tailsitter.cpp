@@ -131,7 +131,10 @@ void QuadPlane::tailsitter_output(void)
         int32_t pitch_error_cd = (plane.nav_pitch_cd - ahrs_view->pitch_sensor) * 0.5;
         float extra_pitch = constrain_float(pitch_error_cd, -SERVO_MAX, SERVO_MAX) / SERVO_MAX;
         float extra_sign = extra_pitch > 0?1:-1;
-        float extra_elevator = extra_sign * powf(fabsf(extra_pitch), tailsitter.vectored_hover_power) * SERVO_MAX;
+        float extra_elevator = 0;
+        if (!is_zero(extra_pitch)) {
+            extra_elevator = extra_sign * powf(fabsf(extra_pitch), tailsitter.vectored_hover_power) * SERVO_MAX;
+        }
         tilt_left  = extra_elevator + tilt_left * tailsitter.vectored_hover_gain;
         tilt_right = extra_elevator + tilt_right * tailsitter.vectored_hover_gain;
         if (fabsf(tilt_left) >= SERVO_MAX || fabsf(tilt_right) >= SERVO_MAX) {
@@ -210,7 +213,8 @@ bool QuadPlane::tailsitter_transition_vtol_complete(void) const
 void QuadPlane::tailsitter_check_input(void)
 {
     if (tailsitter_active() &&
-        (tailsitter.input_type == TAILSITTER_INPUT_BF_ROLL ||
+        (tailsitter.input_type == TAILSITTER_INPUT_BF_ROLL_P ||
+         tailsitter.input_type == TAILSITTER_INPUT_BF_ROLL_M ||
          tailsitter.input_type == TAILSITTER_INPUT_PLANE)) {
         // the user has asked for body frame controls when tailsitter
         // is active. We switch around the control_in value for the
@@ -268,12 +272,18 @@ void QuadPlane::tailsitter_speed_scaling(void)
         } else {
             // if no airspeed sensor reduce control surface throws at large tilt
             // angles (assuming high airspeed)
-
             // ramp down from 1 to max_atten at tilt angles over trans_angle
             // (angles here are represented by their cosines)
-            constexpr float c_trans_angle = cosf(.125f * M_PI);
-            constexpr float alpha = (1 - max_atten) / (c_trans_angle - cosf(radians(90)));
+
+            // Note that the cosf call will be necessary if trans_angle becomes a parameter
+            // but the C language spec does not guarantee that trig functions can be used
+            // in constant expressions, even though gcc currently allows it.
+            constexpr float c_trans_angle = 0.9238795; // cosf(.125f * M_PI)
+
+            // alpha = (1 - max_atten) / (c_trans_angle - cosf(radians(90)));
+            constexpr float alpha = (1 - max_atten) / c_trans_angle;
             constexpr float beta = 1 - alpha * c_trans_angle;
+
             const float c_tilt = ahrs_view->get_rotation_body_to_ned().c.z;
             if (c_tilt < c_trans_angle) {
                 spd_scaler = constrain_float(beta + alpha * c_tilt, max_atten, 1.0f);

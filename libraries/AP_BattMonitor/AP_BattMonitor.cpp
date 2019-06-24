@@ -26,7 +26,7 @@ const AP_Param::GroupInfo AP_BattMonitor::var_info[] = {
 
     // @Group: _
     // @Path: AP_BattMonitor_Params.cpp
-    AP_SUBGROUPINFO_FLAGS(_params[0], "_", 23, AP_BattMonitor, AP_BattMonitor_Params, AP_PARAM_FLAG_IGNORE_ENABLE),
+    AP_SUBGROUPINFO(_params[0], "_", 23, AP_BattMonitor, AP_BattMonitor_Params),
 
     // @Group: 2_
     // @Path: AP_BattMonitor_Params.cpp
@@ -242,10 +242,10 @@ AP_BattMonitor::read()
         }
     }
 
-    AP_Logger *df = AP_Logger::get_singleton();
-    if (df->should_log(_log_battery_bit)) {
-        df->Write_Current();
-        df->Write_Power();
+    AP_Logger *logger = AP_Logger::get_singleton();
+    if (logger->should_log(_log_battery_bit)) {
+        logger->Write_Current();
+        logger->Write_Power();
     }
 
     check_failsafes();

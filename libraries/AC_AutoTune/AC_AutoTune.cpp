@@ -168,7 +168,6 @@ bool AC_AutoTune::init_internals(bool _use_poshold,
         if (success) {
             // reset gains to tuning-start gains (i.e. low I term)
             load_gains(GAIN_INTRA_TEST);
-            // write dataflash log even and send message to ground station
             Log_Write_Event(EVENT_AUTOTUNE_RESTART);
             update_gcs(AUTOTUNE_MESSAGE_STARTED);
         }
@@ -196,7 +195,6 @@ void AC_AutoTune::stop()
     // re-enable angle-to-rate request limits
     attitude_control->use_sqrt_controller(true);
 
-    // log off event and send message to ground station
     update_gcs(AUTOTUNE_MESSAGE_STOPPED);
     Log_Write_Event(EVENT_AUTOTUNE_OFF);
 
@@ -350,8 +348,8 @@ void AC_AutoTune::run()
     // if not auto armed or motor interlock not enabled set throttle to zero and exit immediately
     // this should not actually be possible because of the init() checks
     if (!motors->armed() || !motors->get_interlock()) {
-        motors->set_desired_spool_state(AP_Motors::DESIRED_GROUND_IDLE);
-        attitude_control->set_throttle_out_unstabilized(0.0f, true, 0);
+        motors->set_desired_spool_state(AP_Motors::DesiredSpoolState::GROUND_IDLE);
+        attitude_control->set_throttle_out(0.0f, true, 0.0f);
         pos_control->relax_alt_hold_controllers(0.0f);
         return;
     }
@@ -401,7 +399,7 @@ void AC_AutoTune::run()
     }
 
     // set motors to full range
-    motors->set_desired_spool_state(AP_Motors::DESIRED_THROTTLE_UNLIMITED);
+    motors->set_desired_spool_state(AP_Motors::DesiredSpoolState::THROTTLE_UNLIMITED);
 
     // if pilot override call attitude controller
     if (pilot_override || mode != TUNING) {
@@ -1217,9 +1215,7 @@ void AC_AutoTune::save_tuning_gains()
     update_gcs(AUTOTUNE_MESSAGE_SAVED_GAINS);
     Log_Write_Event(EVENT_AUTOTUNE_SAVEDGAINS);
 
-    // reset Autotune so that gains are not saved again and autotune can be run again.
-    mode = UNINITIALISED;
-    axes_completed = 0;
+    reset();
 }
 
 // update_gcs - send message to ground station
@@ -1703,7 +1699,7 @@ void AC_AutoTune::Log_Write_AutoTune(uint8_t _axis, uint8_t tune_step, float mea
         "ATUN",
         "TimeUS,Axis,TuneStep,Targ,Min,Max,RP,RD,SP,ddt",
         "s--ddd---o",
-        "F--BBB---0",
+        "F--000---0",
         "QBBfffffff",
         AP_HAL::micros64(),
         axis,
@@ -1724,7 +1720,7 @@ void AC_AutoTune::Log_Write_AutoTuneDetails(float angle_cd, float rate_cds)
         "ATDE",
         "TimeUS,Angle,Rate",
         "sdk",
-        "FBB",
+        "F00",
         "Qff",
         AP_HAL::micros64(),
         angle_cd*0.01f,

@@ -107,7 +107,7 @@ AP_MotorsUGV::AP_MotorsUGV(AP_ServoRelayEvents &relayEvents) :
 
 void AP_MotorsUGV::init()
 {
-    // setup servo ouput
+    // setup servo output
     setup_servo_output();
 
     // setup pwm type
@@ -502,8 +502,8 @@ void AP_MotorsUGV::setup_omni()
 
     case FRAME_TYPE_OMNI3:
         _motors_num = 3;
-        add_omni_motor(0, 1.0f, 1.0f, -1.0f);
-        add_omni_motor(1, 0.0f, 1.0f, 1.0f);
+        add_omni_motor(0, 1.0f, -1.0f, -1.0f);
+        add_omni_motor(1, 0.0f, -1.0f, 1.0f);
         add_omni_motor(2, 1.0f, 1.0f, 1.0f);
         break;
 

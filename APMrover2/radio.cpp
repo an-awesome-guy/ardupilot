@@ -15,7 +15,7 @@ void Rover::set_control_channels(void)
     channel_throttle->set_angle(100);
     channel_lateral->set_angle(100);
 
-    // Allow to reconfigure ouput when not armed
+    // Allow to reconfigure output when not armed
     if (!arming.is_armed()) {
         g2.motors.setup_servo_output();
         // For a rover safety is TRIM throttle
@@ -72,7 +72,7 @@ void Rover::rudder_arm_disarm_check()
                 }
             } else {
                 // time to arm!
-                arm_motors(AP_Arming::Method::RUDDER);
+                arming.arm(AP_Arming::Method::RUDDER);
                 rudder_arm_timer = 0;
             }
         } else {
@@ -91,7 +91,7 @@ void Rover::rudder_arm_disarm_check()
                 }
             } else {
                 // time to disarm!
-                disarm_motors();
+                arming.disarm();
                 rudder_arm_timer = 0;
             }
         } else {
@@ -125,7 +125,7 @@ void Rover::radio_failsafe_check(uint16_t pwm)
     }
 
     bool failed = pwm < static_cast<uint16_t>(g.fs_throttle_value);
-    if (AP_HAL::millis() - failsafe.last_valid_rc_ms > 200) {
+    if (AP_HAL::millis() - failsafe.last_valid_rc_ms > 500) {
         failed = true;
     }
     failsafe_trigger(FAILSAFE_EVENT_THROTTLE, failed);

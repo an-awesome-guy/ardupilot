@@ -54,7 +54,7 @@ void Tracker::update_bearing_and_distance()
     // calculate bearing to vehicle
     // To-Do: remove need for check of control_mode
     if (control_mode != SCAN && !nav_status.manual_control_yaw) {
-        nav_status.bearing  = get_bearing_cd(current_loc, vehicle.location_estimate) * 0.01f;
+        nav_status.bearing  = current_loc.get_bearing_to(vehicle.location_estimate) * 0.01f;
     }
 
     // calculate distance to vehicle
@@ -110,7 +110,11 @@ void Tracker::update_tracking(void)
 
     switch (control_mode) {
     case AUTO:
-        update_auto();
+        if (vehicle.location_valid) {
+            update_auto();
+        } else if (tracker.target_set) {
+            update_scan();
+        }
         break;
 
     case MANUAL:
